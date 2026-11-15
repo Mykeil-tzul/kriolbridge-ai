@@ -2,7 +2,7 @@
 
 **[Try KriolBridge AI](https://mykeil-tzul.github.io/kriolbridge-ai/)**
 
-A three-language learning prototype for Belizean Kriol, English, and Spanish. I wanted to make everyday Kriol easier to explore alongside the languages people might already speak, while making the source of each translation visible.
+I built KriolBridge so people can practice everyday Belizean Kriol alongside English and Spanish. Try a greeting, a market visit, or asking for help. The phrasebook shows the source for each entry so you can see where the wording came from.
 
 ## What it does
 
