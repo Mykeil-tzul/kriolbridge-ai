@@ -6,6 +6,7 @@ const button=(text,fn)=>{const b=el("button",text);b.type="button";b.onclick=fn;
 const get=id=>phrases.find(p=>p.id===id);
 let focus=get("how"),step=0,solved=false,session=null,requesting=false;
 const recordings=new Map();
+const audioTypes=new Map();
 for(const id of ["from","to","practice-language"])$(id).replaceChildren(...Object.entries(languages).map(([k,v])=>new Option(v,k)));
 $("from").value="en";$("to").value="bzj";$("practice-language").value="es";
 $("scene").replaceChildren(...conversations.map((p,i)=>new Option(p.name,i)));
@@ -101,8 +102,11 @@ function renderVoice(){
   if(url){
    const audio=el("audio");audio.controls=true;audio.src=url;
    audio.setAttribute("aria-label",name+" recording");
-   card.append(audio,button("Discard "+name+" recording",()=>{
-    URL.revokeObjectURL(url);recordings.delete(key);renderVoice();
+   const download=el("a","Download "+name+" take");
+   download.href=url;
+   download.download=focus.id+"-"+lang+"."+(audioTypes.get(key)?.includes("mp4")?"m4a":audioTypes.get(key)?.includes("ogg")?"ogg":"webm");
+   card.append(audio,download,button("Discard "+name+" recording",()=>{
+    URL.revokeObjectURL(url);recordings.delete(key);audioTypes.delete(key);renderVoice();
    }));
   }
   return card;
@@ -135,6 +139,7 @@ async function recordVoice(key,name){
    if(chunks.length){
     if(recordings.has(key))URL.revokeObjectURL(recordings.get(key));
     recordings.set(key,URL.createObjectURL(new Blob(chunks,{type:recorder.mimeType})));
+    audioTypes.set(key,recorder.mimeType);
    }
    renderVoice();
    $("voice-status").textContent=chunks.length?name+" recording ready. It stays in this tab.":"No audio was recorded.";
@@ -155,11 +160,28 @@ $("voice-choice").replaceChildren(...phrases.map(p=>new Option(p.en,p.id)));
 $("voice-choice").onchange=()=>choose(get($("voice-choice").value));
 const report=evaluate(lookup);
 $("evaluation-metrics").textContent=`${report.matches} of ${report.matchTotal} in-scope queries found the right phrase first. ${report.abstentions} of ${report.abstentionTotal} out-of-scope queries returned no match.`;
-$("draft").onclick=()=>{
- const note=$("note").value.trim();if(!note)return;
- const data={phrase:focus.id,suggestion:note,status:"unreviewed private draft"};
- const u=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
- const link=el("a");link.href=u;link.download="kriolbridge-review-draft.json";link.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
+const reviewIds=["hello","how","morning","thanks","cost","understand","where","time"];
+$("review-phrase").replaceChildren(...reviewIds.map(id=>new Option(get(id).bzj+" · "+get(id).en,id)));
+$("review-record").onclick=()=>{
+ choose(get($("review-phrase").value),true);
+ $("voice-status").textContent="Use Record Belizean Kriol, then download your take when it is ready.";
+};
+$("review-form").onsubmit=event=>{
+ event.preventDefault();
+ const phrase=$("review-phrase").value;
+ const variant=$("review-variant").value.trim(), note=$("note").value.trim();
+ const hasKriolTake=recordings.has(phrase+":bzj");
+ if(!variant&&!note&&!hasKriolTake){
+  $("review-status").textContent="Add a wording note or record a Kriol take before downloading.";
+  return;
+ }
+ const data={phrase,variant,note,status:"speaker submission pending verification",hasKriolTake,
+  permissionToPublishWrittenFeedback:$("review-text-permission").value==="yes",
+  permissionToPublishReferenceAudio:hasKriolTake&&$("review-audio-permission").value==="yes"};
+ const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
+ const link=el("a");link.href=url;link.download="kriolbridge-"+phrase+"-review.json";link.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ $("review-status").textContent="Review draft downloaded. If you recorded a Kriol take, download and share it separately.";
 };
 $("query").value="How are you doing today?";
 library();practice();find();
