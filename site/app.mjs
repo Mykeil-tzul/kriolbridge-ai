@@ -7,6 +7,8 @@ let focus=get("how"),step=0,solved=false,session=null,url=null,requesting=false;
 for(const id of ["from","to","practice-language"])$(id).replaceChildren(...Object.entries(languages).map(([k,v])=>new Option(v,k)));
 $("from").value="en";$("to").value="bzj";$("practice-language").value="es";
 $("scene").replaceChildren(...conversations.map((p,i)=>new Option(p.name,i)));
+const topics=[...new Set(phrases.map(p=>p.topic))];
+$("topic").replaceChildren(new Option("All topics",""),...topics.map(topic=>new Option(topic)));
 function choose(phrase,go=false){
  focus=phrase;
  $("voice-phrase").textContent="Practice phrase · "+phrase.bzj+" / "+phrase.en+" / "+phrase.es;
