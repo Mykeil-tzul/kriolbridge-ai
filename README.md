@@ -25,3 +25,11 @@ node --test tests/*.test.mjs
 ```
 
 Localhost and HTTPS support microphone access where the browser allows it. Audio capture is optional. Automated tests verify all three lookup languages, aliases, misspellings, abstention, and conversation references. GitHub Pages hosts the public app.
+
+## Compare your pronunciation and review the wording
+
+Select one phrase in **Speaking lab**. Record and replay a separate take for Belizean Kriol, English, and Spanish. You can switch phrases and come back to those takes while the tab is open. The mic stops after 20 seconds and the recordings stay in memory. English and Spanish examples use local synthetic voices. The Kriol card displays the published text while it awaits native-speaker reference audio.
+
+The [eight-phrase review sheet](site/speaker-review.csv) gives Belizean Kriol speakers a place to suggest spellings and explain where they use each form. Entries are marked pending. Written feedback and any audio should be published only with the contributor’s explicit permission. Microphone practice in the app is separate from contributing a recording.
+
+I ran a [28-query software check](site/lookup-cases.mjs) across the three languages. The previous similarity cutoff found 18 of 18 intended phrases and abstained on 9 of 10 unsupported questions. Raising the cutoff from 0.43 to 0.55 kept all 18 matches and abstained on all 10 unsupported questions in this set. These examples informed the change and are regression checks. A future evaluation needs independently authored queries and community-reviewed wording.

@@ -60,7 +60,7 @@ export function lookup(input,lang){
  const {docs,df}=vocab[lang], q=vector(query,df);
  return docs.map((matches,i)=>({phrase:phrases[i],exact:matches.includes(query),
   score:Math.max(...matches.map(s=>similarity(q,vector(s,df))))}))
-  .filter(x=>x.exact||x.score>=.43).sort((a,b)=>Number(b.exact)-Number(a.exact)||b.score-a.score).slice(0,3);
+  .filter(x=>x.exact||x.score>=.55).sort((a,b)=>Number(b.exact)-Number(a.exact)||b.score-a.score).slice(0,3);
 }
 export const conversations=[
  {name:"Meet someone",steps:[["Start with a greeting","hello"],["Ask how they’re doing","how"],["Say you’re doing well","well"]]},

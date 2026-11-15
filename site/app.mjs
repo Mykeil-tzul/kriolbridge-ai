@@ -1,9 +1,11 @@
-import {languages,phrases,lookup,conversations,source} from "./phrases.mjs";
+import {languages,phrases,lookup,conversations,source} from "./phrases.mjs?v=practice-2";
+import {evaluate} from "./lookup-cases.mjs?v=practice-2";
 const $=id=>document.getElementById(id);
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
 const button=(text,fn)=>{const b=el("button",text);b.type="button";b.onclick=fn;return b;};
 const get=id=>phrases.find(p=>p.id===id);
-let focus=get("how"),step=0,solved=false,session=null,url=null,requesting=false;
+let focus=get("how"),step=0,solved=false,session=null,requesting=false;
+const recordings=new Map();
 for(const id of ["from","to","practice-language"])$(id).replaceChildren(...Object.entries(languages).map(([k,v])=>new Option(v,k)));
 $("from").value="en";$("to").value="bzj";$("practice-language").value="es";
 $("scene").replaceChildren(...conversations.map((p,i)=>new Option(p.name,i)));
@@ -11,7 +13,8 @@ const topics=[...new Set(phrases.map(p=>p.topic))];
 $("topic").replaceChildren(new Option("All topics",""),...topics.map(topic=>new Option(topic)));
 function choose(phrase,go=false){
  focus=phrase;
- $("voice-phrase").textContent="Practice phrase · "+phrase.bzj+" / "+phrase.en+" / "+phrase.es;
+ $("voice-choice").value=phrase.id;
+ renderVoice();
  if(go)$("voice").scrollIntoView();
 }
 function sourceLink(){
@@ -85,40 +88,73 @@ function hear(lang){
  speechSynthesis.cancel();speechSynthesis.speak(utterance);
  $("voice-status").textContent="Playing a local synthetic "+languages[lang]+" voice.";
 }
-$("hear-en").onclick=()=>hear("en");$("hear-es").onclick=()=>hear("es");
-function discard(){
- const audio=$("playback");audio.pause();audio.removeAttribute("src");audio.hidden=true;
- if(url)URL.revokeObjectURL(url);url=null;$("discard").disabled=true;
+function renderVoice(){
+ const cards=Object.entries(languages).map(([lang,name])=>{
+  const key=focus.id+":"+lang, url=recordings.get(key);
+  const card=el("article");card.className="voice-card";
+  const actions=el("div");actions.className="actions";
+  if(lang!=="bzj") actions.append(button("Hear example",()=>hear(lang)));
+  const record=button(url?"Record again":"Record "+name,()=>recordVoice(key,name));
+  record.disabled=Boolean(session)||requesting;
+  actions.append(record);
+  card.append(el("h3",name),el("p",focus[lang]),actions);
+  if(url){
+   const audio=el("audio");audio.controls=true;audio.src=url;
+   audio.setAttribute("aria-label",name+" recording");
+   card.append(audio,button("Discard "+name+" recording",()=>{
+    URL.revokeObjectURL(url);recordings.delete(key);renderVoice();
+   }));
+  }
+  return card;
+ });
+ $("voice-phrase").replaceChildren(...cards);
 }
-$("discard").onclick=()=>{discard();$("voice-status").textContent="Recording discarded.";};
-$("record").onclick=async()=>{
+async function recordVoice(key,name){
  if(requesting||session)return;
- requesting=true;$("record").disabled=true;
+ requesting=true;renderVoice();
  let stream;
  try{
+  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder) throw new Error("Recorder unavailable");
   stream=await navigator.mediaDevices.getUserMedia({audio:true});
-  const recorder=new MediaRecorder(stream),chunks=[];
-  session={recorder,stream};
+  const recorder=new MediaRecorder(stream), chunks=[];
+  const capture={recorder,stream};
+  session=capture;
   recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-  recorder.onstop=()=>{
-   clearTimeout(session?.timer);stream.getTracks().forEach(t=>t.stop());session=null;
-   $("record").disabled=false;$("stop").disabled=true;
-   if(!chunks.length){$("voice-status").textContent="No audio was recorded.";return;}
-   discard();url=URL.createObjectURL(new Blob(chunks,{type:recorder.mimeType}));
-   $("playback").src=url;$("playback").hidden=false;$("discard").disabled=false;
-   $("voice-status").textContent="Recording ready. It stays in this tab.";
+  function release(){
+   clearTimeout(capture.timer);stream.getTracks().forEach(t=>t.stop());
+   if(session===capture)session=null;
+   $("stop").disabled=true;
+  }
+  recorder.onerror=()=>{
+   capture.failed=true;release();renderVoice();
+   $("voice-status").textContent="Recording stopped because the microphone became unavailable.";
   };
-  recorder.start();session.timer=setTimeout(()=>$("stop").click(),20000);
-  $("stop").disabled=false;$("voice-status").textContent="Recording locally · up to 20 seconds.";
+  recorder.onstop=()=>{
+   release();
+   if(capture.failed)return;
+   if(chunks.length){
+    if(recordings.has(key))URL.revokeObjectURL(recordings.get(key));
+    recordings.set(key,URL.createObjectURL(new Blob(chunks,{type:recorder.mimeType})));
+   }
+   renderVoice();
+   $("voice-status").textContent=chunks.length?name+" recording ready. It stays in this tab.":"No audio was recorded.";
+  };
+  recorder.start();
+  capture.timer=setTimeout(()=>$("stop").click(),20000);
+  $("stop").disabled=false;$("voice-status").textContent="Recording "+name+" · up to 20 seconds.";
  }catch{
-  stream?.getTracks().forEach(t=>t.stop());session=null;$("record").disabled=false;
+  stream?.getTracks().forEach(t=>t.stop());session=null;
   $("voice-status").textContent="Recording unavailable. Check browser support and microphone permission.";
- }finally{requesting=false;}
-};
+ }finally{requesting=false;renderVoice();}
+}
 $("stop").onclick=()=>{
  if(session?.recorder.state==="recording"){session.recorder.stop();$("stop").disabled=true;}
 };
 window.addEventListener("pagehide",()=>session?.stream.getTracks().forEach(track=>track.stop()));
+$("voice-choice").replaceChildren(...phrases.map(p=>new Option(p.en,p.id)));
+$("voice-choice").onchange=()=>choose(get($("voice-choice").value));
+const report=evaluate(lookup);
+$("evaluation-metrics").textContent=`${report.matches} of ${report.matchTotal} in-scope queries found the right phrase first. ${report.abstentions} of ${report.abstentionTotal} out-of-scope queries returned no match.`;
 $("draft").onclick=()=>{
  const note=$("note").value.trim();if(!note)return;
  const data={phrase:focus.id,suggestion:note,status:"unreviewed private draft"};

@@ -20,3 +20,10 @@ test("typo retrieval is approximate and unrelated input can abstain",()=>{
 test("every scene uses known phrases",()=>{
  for(const scene of conversations)for(const [,id] of scene.steps)assert.ok(phrases.some(p=>p.id===id));
 });
+
+test("sourced phrase lookup handles the published multilingual checks", async () => {
+ const {evaluate} = await import("../site/lookup-cases.mjs");
+ const {matches,matchTotal,abstentions,abstentionTotal} = evaluate(lookup);
+ assert.equal(matches,matchTotal);
+ assert.equal(abstentions,abstentionTotal);
+});
